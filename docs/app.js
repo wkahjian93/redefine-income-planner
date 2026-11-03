@@ -14,8 +14,8 @@
   const money = v => v >= 1e6 ? 'RM' + +(v / 1e6).toFixed(2) + 'm' : rm(v);
   const shortMoney = v => !v ? '0' : v >= 1e6 ? +(v / 1e6).toFixed(2) + 'm' : Math.round(v / 1000) + 'k';
   const CONTROLS = {
-    cases: {label: 'Cases a month', min: 0, max: 20, step: 1, fmt: v => v + (v === 1 ? ' case' : ' cases')},
-    size: {label: 'Case size (annual premium)', min: 500, max: 15000, step: 100, fmt: rm},
+    cases: {label: 'Cases a month', min: 0, max: 20, top: 100, whole: true, step: 1, fmt: v => v + (v === 1 ? ' case' : ' cases')},
+    size: {label: 'Case size (annual premium)', min: 500, max: 15000, top: 1000000, step: 100, fmt: rm},
     renewalPct: {label: 'Policies renewing each year', min: 50, max: 100, step: 1, fmt: v => v + '%', hint: 'The commission tables assume 100%. Lower it to test a more cautious case.'},
     umDU: {label: 'Your direct unit sales a year including your PS', min: 0, max: 3000000, step: 10000, fmt: money},
     umBlock: {label: 'Group sales of a UM you developed', min: 0, max: 2000000, step: 10000, fmt: money},
@@ -24,8 +24,18 @@
     gmBlock: {label: 'Group sales of a UM developed by your UM', min: 0, max: 3000000, step: 10000, fmt: money},
     gmWG: {label: 'Daughter GM whole group sales a year', min: 0, max: 10000000, step: 100000, fmt: money},
     defNB: {label: 'New business a year', min: 0, max: 5000000, step: 50000, fmt: money},
-    defYears: {label: 'After how many years', min: 1, max: 30, step: 1, fmt: v => v + (v === 1 ? ' year' : ' years')}
+    defYears: {label: 'After how many years', min: 1, max: 30, whole: true, step: 1, fmt: v => v + (v === 1 ? ' year' : ' years')}
   };
+  const topOf = c => c.top || (c.fmt === money ? 1e9 : c.max);
+
+  // Reads a typed amount: "RM1,200,000", "1.2m", "350k" and "6 cases" all work.
+  function parseAmount(text) {
+    const s = String(text).toLowerCase().replace(/rm|,|\s|cases?|years?|%/g, '');
+    const m = s.match(/^(\d*\.?\d+)([km]?)$/);
+    if (!m) return NaN;
+    return +m[1] * (m[2] === 'm' ? 1e6 : m[2] === 'k' ? 1e3 : 1);
+  }
+
   const LAYOUT = {
     agent: {main: ['cases', 'size', 'renewalPct']},
     um: {main: ['umDU', 'renewalPct'], more: ['umBlock'], moreLabel: 'Developed another UM?'},
@@ -40,11 +50,11 @@
   function controlHtml(key) {
     const c = CONTROLS[key];
     return `<div class="ctl">
-      <div class="ctl-top"><label for="r-${key}">${c.label}</label><output id="o-${key}"></output></div>
+      <div class="ctl-top"><label for="n-${key}">${c.label}</label><input class="num" id="n-${key}" data-num="${key}" inputmode="decimal" autocomplete="off" enterkeyhint="done"></div>
       ${c.hint ? `<div class="ctl-hint">${c.hint}</div>` : ''}
       <div class="ctl-row">
         <button class="step" data-key="${key}" data-dir="-1" aria-label="Less: ${c.label}">&minus;</button>
-        <input type="range" id="r-${key}" data-key="${key}" min="${c.min}" max="${c.max}" step="${c.step}" value="${val(key)}">
+        <input type="range" id="r-${key}" data-key="${key}" aria-label="${c.label}" min="${c.min}" max="${c.max}" step="${c.step}" value="${val(key)}">
         <button class="step" data-key="${key}" data-dir="1" aria-label="More: ${c.label}">+</button>
       </div></div>`;
   }
@@ -55,24 +65,31 @@
     let html = '';
     l.main.forEach(k => {
       html += controlHtml(k);
-      if (k === 'size') html += '<p class="summary-line" id="yearly"></p>';
+      if (k === 'size') html += '<p class="summary-line" id="yearly"><span id="salesCalc"></span> = <input class="num sales" id="salesIn" data-sales inputmode="decimal" autocomplete="off" enterkeyhint="done" aria-label="Personal sales"> <span id="salesWhen"></span></p>';
       if (k === 'gmUM') html += '<p class="summary-line" id="wgLine"></p>';
     });
     if (l.more) html += `<details><summary>${l.moreLabel}</summary>${l.more.map(controlHtml).join('')}</details>`;
-    $('sliders').innerHTML = html;
+    $('sliders').innerHTML = '<p class="type-tip">Drag, tap &minus; or +, or tap any amount to type it.</p>' + html;
     syncSliders();
   }
+
+  // A typed box is left alone while someone is typing in it
+  const showNum = (el, text) => { if (el && document.activeElement !== el) el.value = text; };
 
   function syncSliders() {
     document.querySelectorAll('#sliders input[type=range], #defSliders input[type=range]').forEach(el => {
       const k = el.dataset.key, c = CONTROLS[k];
       el.value = val(k);
-      el.style.setProperty('--p', ((val(k) - c.min) / (c.max - c.min) * 100) + '%');
-      $('o-' + k).textContent = c.fmt(val(k));
+      el.style.setProperty('--p', Math.min(100, (val(k) - c.min) / (c.max - c.min) * 100) + '%');
+      showNum($('n-' + k), c.fmt(val(k)));
       el.setAttribute('aria-valuetext', c.fmt(val(k)));
     });
     const yearly = $('yearly');
-    if (yearly) yearly.innerHTML = `${val('cases')} &times; ${rm(val('size'))} &times; 12 = <b>${rm(val('cases') * val('size') * 12)}</b> personal sales ${mode === 'yearly' ? 'in Year ' + year : 'a year'}`;
+    if (yearly) {
+      $('salesCalc').innerHTML = `${val('cases')} &times; ${rm(val('size'))} &times; 12`;
+      showNum($('salesIn'), rm(val('cases') * val('size') * 12));
+      $('salesWhen').textContent = `personal sales ${mode === 'yearly' ? 'in Year ' + year : 'a year'}`;
+    }
     const wgLine = $('wgLine');
     if (wgLine) {
       const wg = val('gmDU') + val('gmUM') + val('gmBlock'), bonus = Calc.wgSteps(wg) * Calc.GM_BENEFITS.wgBonus;
@@ -187,7 +204,8 @@
   }
 
   function setValue(key, value) {
-    const c = CONTROLS[key], v = Math.min(c.max, Math.max(c.min, value));
+    const c = CONTROLS[key];
+    const v = Math.min(topOf(c), Math.max(c.min, c.whole ? Math.round(value) : value));
     if (mode === 'yearly' && !ONE_VALUE.includes(key)) plan[key][year - 1] = v;
     else {
       state[key] = v;
@@ -258,7 +276,32 @@
   $('plan').addEventListener('click', pick);
   $('copy').addEventListener('click', copyForward);
   document.querySelector('.mode').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.mode); });
+  // Typed sales amount on the Agent tab: keeps the cases and works out the average case size
+  function setSales(total) {
+    if (!(total >= 0)) return syncSliders();
+    if (total === 0) return setValue('cases', 0);
+    let cases = val('cases') || 1;
+    // too few sales for the smallest case size: use fewer cases instead
+    if (total / (cases * 12) < CONTROLS.size.min) cases = Math.max(1, Math.floor(total / (12 * CONTROLS.size.min)));
+    setValue('cases', cases);
+    setValue('size', total / (cases * 12));
+  }
+
   ['sliders', 'defSliders'].forEach(id => {
+    $(id).addEventListener('focusin', e => {
+      const k = e.target.dataset.num;
+      if (k) e.target.value = +val(k).toFixed(2);
+      else if (e.target.id === 'salesIn') e.target.value = Math.round(val('cases') * val('size') * 12);
+      else return;
+      e.target.select();
+    });
+    $(id).addEventListener('change', e => {
+      const k = e.target.dataset.num, n = parseAmount(e.target.value);
+      if (k) { if (isNaN(n)) syncSliders(); else setValue(k, n); e.target.blur(); syncSliders(); }
+      else if (e.target.id === 'salesIn') { e.target.blur(); setSales(n); syncSliders(); }
+    });
+    $(id).addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('num')) e.target.blur(); });
+    $(id).addEventListener('focusout', e => { if (e.target.classList.contains('num')) setTimeout(syncSliders); });
     $(id).addEventListener('input', e => { if (e.target.dataset.key) setValue(e.target.dataset.key, +e.target.value); });
     $(id).addEventListener('click', e => {
       const b = e.target.closest('.step');
