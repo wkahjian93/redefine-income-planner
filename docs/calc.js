@@ -82,6 +82,22 @@
     return {years, sixYearTotal: sum(years.map(y => y.total))};
   }
 
+  // MAE: Market (average case size) x Activity (presentations) x Efficiency (closing ratio) = ANP.
+  // Works back from a commission goal, as in the REDEFINE MAE video:
+  // commission / 28% = ANP, / case size = cases, / closing ratio = presentations a year,
+  // then a month (/12, rounded up) and a week (/4, rounded up); appointments = presentations / P:O, approaches = appointments / O:A.
+  function mae({goal, size, closing, presentRatio, prospectRatio}) {
+    const rate = RATES.personal[0];
+    const anp = goal / rate;
+    const casesYear = size > 0 ? anp / size : 0;
+    const pYear = closing > 0 ? casesYear / closing : 0;
+    const pMonth = Math.max(0, Math.ceil(pYear / 12 - 1e-9));
+    const pWeek = Math.max(0, Math.ceil(pMonth / 4 - 1e-9));
+    const oWeek = presentRatio > 0 ? Math.round(pWeek / presentRatio) : 0;
+    const aWeek = prospectRatio > 0 ? Math.round(oWeek / prospectRatio) : 0;
+    return {rate, anp, casesYear, casesMonth: casesYear / 12, pYear, pMonth, pWeek, oWeek, aWeek, cWeek: pWeek * closing};
+  }
+
   // Deferred Benefits table in the commission sheet: 90% of new business builds accumulated renewal each year.
   // 1.25% of it is added to the fund each year, and from Year 2 the fund plus that addition grows 5%.
   const DEFERRED = {renewal: 0.9, rate: 0.0125, growth: 0.05, years: 30};
@@ -99,6 +115,6 @@
     return rows;
   }
 
-  const api = {RATES, GM_BENEFITS, DEFERRED, YEARS, at, cohorts, sources, project, wgSteps, wholeGroup, deferred};
+  const api = {RATES, GM_BENEFITS, DEFERRED, YEARS, at, cohorts, sources, project, wgSteps, wholeGroup, deferred, mae};
   if (typeof module !== 'undefined') module.exports = api; else root.Calc = api;
 })(this);

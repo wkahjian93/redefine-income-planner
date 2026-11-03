@@ -1,6 +1,6 @@
 // Checks the app's maths against the commission sheet and the company chart. Run: node test.js
 const assert = require('assert');
-const {project, RATES, deferred} = require('./docs/calc.js');
+const {project, RATES, deferred, mae} = require('./docs/calc.js');
 const base = {cases: 0, size: 0, renewal: 1, umDU: 0, umBlock: 0, gmDU: 0, gmUM: 0, gmBlock: 0, gmWG: 0};
 const near = (a, b, msg) => assert(Math.abs(a - b) < 0.01, `${msg}: got ${a}, expected ${b}`);
 const totals = p => p.years.map(y => y.total - y.benefits);   // overriding and commission only
@@ -82,5 +82,14 @@ near(def[0].accumulated, 900000, 'accumulated year 1');
 near(def[29].accumulated, 27000000, 'accumulated year 30');
 near(deferred(500000)[29].fund, SHEET_DEFERRED[29] / 2, 'deferred scales with new business');
 near(deferred(0)[29].fund, 0, 'deferred at zero');
+
+// MAE video worked example: RM36,000 commission, RM3,000 case size, 20% closing, 70% P/O, 60% O/A
+const m = mae({goal: 36000, size: 3000, closing: 0.2, presentRatio: 0.7, prospectRatio: 0.6});
+near(m.anp, 128571.43, 'mae anp');
+near(m.casesYear, 42.857, 'mae cases');
+near(m.pYear, 214.286, 'mae presentations a year');
+assert.deepStrictEqual([m.pMonth, m.pWeek, m.oWeek, m.aWeek], [18, 5, 7, 12], 'mae month and week');
+const m0 = mae({goal: 0, size: 3000, closing: 0.2, presentRatio: 0.7, prospectRatio: 0.6});
+assert.deepStrictEqual([m0.pMonth, m0.pWeek, m0.oWeek, m0.aWeek], [0, 0, 0, 0], 'mae zero goal');
 
 console.log('All checks passed');

@@ -25,6 +25,7 @@
     <button role="tab" data-view="agent">Agent</button>
     <button role="tab" data-view="um">UM</button>
     <button role="tab" data-view="gm">GM</button>
+    <button role="tab" data-view="mae">MAE</button>
     <button role="tab" data-view="deferred">Deferred</button>
     <button role="tab" data-view="rates">Rates</button>
   </nav>
@@ -63,6 +64,31 @@
     <div class="card-head"><h2 id="breakTitle"></h2><span class="muted">a month</span></div>
     <div id="breakdown"></div>
     <div class="six"><span>6-year total</span><strong id="six"></strong></div>
+  </section>
+</main>
+
+<main id="mae" hidden>
+  <section class="hero" aria-live="polite">
+    <p class="hero-label">Presentations you need</p>
+    <p class="hero-num"><span id="maeNum">0</span><small class="per">/week</small></p>
+    <p class="hero-sub" id="maeSub"></p>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Your assumptions</h2><button class="link" id="maeReset">Reset</button></div>
+    <div id="maeSliders"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>From goal to activity</h2></div>
+    <div id="maeSteps"></div>
+    <p class="summary-line" id="maeEq"></p>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Your week</h2><span class="muted">A, O, P, C</span></div>
+    <div id="maeFunnel"></div>
+    <p class="note">Follow-ups (F/P) should stay under 50%.</p>
   </section>
 </main>
 

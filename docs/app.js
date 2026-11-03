@@ -4,8 +4,8 @@
   const rm = n => 'RM' + Math.round(n).toLocaleString('en-MY');
   const pct = n => +(n * 100).toFixed(3) + '%';
 
-  const DEFAULTS = {cases: 6, size: 3000, renewalPct: 100, umDU: 600000, umBlock: 0, gmDU: 1000000, gmUM: 600000, gmBlock: 0, gmWG: 2000000, defNB: 1000000, defYears: 30};
-  const ONE_VALUE = ['renewalPct', 'defNB', 'defYears'];   // never set year by year
+  const DEFAULTS = {cases: 6, size: 3000, renewalPct: 100, umDU: 600000, umBlock: 0, gmDU: 1000000, gmUM: 600000, gmBlock: 0, gmWG: 2000000, defNB: 1000000, defYears: 30, maeGoal: 36000, maeSize: 3000, maeClose: 20, maePresent: 70, maeProspect: 60};
+  const ONE_VALUE = ['renewalPct', 'defNB', 'defYears', 'maeGoal', 'maeSize', 'maeClose', 'maePresent', 'maeProspect'];   // never set year by year
   const PER_YEAR = Object.keys(DEFAULTS).filter(k => !ONE_VALUE.includes(k));
   let state = Object.assign({}, DEFAULTS);
   let plan = null, mode = 'same';   // plan holds one value per year for each PER_YEAR key
@@ -24,7 +24,12 @@
     gmBlock: {label: 'Group sales of a UM developed by your UM', min: 0, max: 3000000, step: 10000, fmt: money},
     gmWG: {label: 'Daughter GM whole group sales a year', min: 0, max: 10000000, step: 100000, fmt: money},
     defNB: {label: 'New business a year (DU)', min: 0, max: 5000000, step: 50000, fmt: money},
-    defYears: {label: 'After how many years', min: 1, max: 30, whole: true, step: 1, fmt: v => v + (v === 1 ? ' year' : ' years')}
+    defYears: {label: 'After how many years', min: 1, max: 30, whole: true, step: 1, fmt: v => v + (v === 1 ? ' year' : ' years')},
+    maeGoal: {label: 'Commission goal a year', min: 0, max: 300000, step: 1000, fmt: rm},
+    maeSize: {label: 'M: average case size (ANP)', min: 500, max: 15000, top: 1000000, step: 100, fmt: rm},
+    maeClose: {label: 'E: closing ratio (C/P)', min: 5, max: 50, top: 100, step: 1, fmt: v => v + '%', hint: 'Usually 10% to 20%. Ideal 20%.'},
+    maePresent: {label: 'Presentation ratio (P/O)', min: 30, max: 100, top: 100, step: 1, fmt: v => v + '%', hint: 'Aim for 70% or higher.'},
+    maeProspect: {label: 'Prospecting ratio (O/A)', min: 20, max: 100, top: 100, step: 1, fmt: v => v + '%', hint: 'Aim for 60% or higher.'}
   };
   const topOf = c => c.top || (c.fmt === money ? 1e9 : c.max);
 
@@ -78,7 +83,7 @@
   const showNum = (el, text) => { if (el && document.activeElement !== el) el.value = text; };
 
   function syncSliders() {
-    document.querySelectorAll('#sliders input[type=range], #defSliders input[type=range]').forEach(el => {
+    document.querySelectorAll('#sliders input[type=range], #defSliders input[type=range], #maeSliders input[type=range]').forEach(el => {
       const k = el.dataset.key, c = CONTROLS[k];
       el.value = val(k);
       el.style.setProperty('--p', Math.min(100, (val(k) - c.min) / (c.max - c.min) * 100) + '%');
@@ -176,6 +181,30 @@
     $('breakdown').innerHTML = rows;
   }
 
+  const MAE_KEYS = ['maeGoal', 'maeSize', 'maeClose', 'maePresent', 'maeProspect'];
+  const count = (n, d = 1) => (+n.toFixed(d)).toLocaleString('en-MY');
+
+  function renderMae() {
+    const r = Calc.mae({goal: state.maeGoal, size: state.maeSize, closing: state.maeClose / 100, presentRatio: state.maePresent / 100, prospectRatio: state.maeProspect / 100});
+    $('maeNum').textContent = r.pWeek;
+    $('maeSub').textContent = `${r.pMonth} a month, ${count(r.pYear, 0)} a year, for ${rm(state.maeGoal)} commission a year (${rm(state.maeGoal / 12)} a month)`;
+    $('maeSteps').innerHTML = [
+      ['Commission goal ÷ first-year rate', `${rm(state.maeGoal)} ÷ <strong class="pct">${pct(r.rate)}</strong>`, `${rm(r.anp)} ANP`],
+      ['ANP ÷ M (case size)', `${rm(r.anp)} ÷ ${rm(state.maeSize)}`, `${count(r.casesYear)} cases a year`],
+      ['Cases ÷ E (closing ratio)', `${count(r.casesYear)} ÷ <strong class="pct">${state.maeClose}%</strong>`, `${count(r.pYear, 0)} presentations a year`],
+      ['A month, then a week', `${count(r.pYear, 0)} ÷ 12, then ÷ 4 weeks, rounded up`, `${r.pMonth} a month, ${r.pWeek} a week`]
+    ].map(([b, s, v], i) => `<div class="row"><span class="stepno">${i + 1}</span><div><b>${b}</b><small>${s}</small></div><span class="amt">${v}</span></div>`).join('');
+    $('maeEq').innerHTML = `M ${rm(state.maeSize)} &times; A ${count(r.pYear, 0)} presentations &times; E ${state.maeClose}% = <b>${rm(r.anp)} ANP</b>`;
+    const funnel = [
+      ['A', 'approaches', r.aWeek, `O/A ${state.maeProspect}%`],
+      ['O', 'appointments', r.oWeek, `P/O ${state.maePresent}%`],
+      ['P', 'presentations', r.pWeek, `C/P ${state.maeClose}%`],
+      ['C', r.cWeek === 1 ? 'case closed' : 'cases closed', r.cWeek, '']
+    ];
+    const top = Math.max(1, ...funnel.map(f => f[2]));
+    $('maeFunnel').innerHTML = funnel.map(([k, name, n, ratio]) => `<div class="fstep"><span class="fkey">${k}</span><div class="fbar"><span style="width:${Math.max(4, n / top * 100)}%"></span><b>${count(n)} ${name}</b></div><span class="fratio">${ratio}</span></div>`).join('');
+  }
+
   function renderDeferred() {
     const rows = Calc.deferred(state.defNB), now = rows[state.defYears - 1];
     const max = Math.max(1, rows[29].fund);
@@ -193,6 +222,7 @@
 
   function render() {
     if (view === 'deferred') return renderDeferred();
+    if (view === 'mae') return renderMae();
     const p = Calc.project(view, inputs());
     const y = p.years[year - 1];
     $('heroLabel').textContent = heroLabel(year);
@@ -208,7 +238,8 @@
   function setView(v) {
     view = v;
     document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.view === v));
-    $('planner').hidden = v === 'rates' || v === 'deferred';
+    $('planner').hidden = ['rates', 'deferred', 'mae'].includes(v);
+    $('mae').hidden = v !== 'mae';
     $('rates').hidden = v !== 'rates';
     $('deferred').hidden = v !== 'deferred';
     if (v !== 'rates') { buildSliders(); render(); }
@@ -299,7 +330,7 @@
     setValue('size', total / (cases * 12));
   }
 
-  ['sliders', 'defSliders'].forEach(id => {
+  ['sliders', 'defSliders', 'maeSliders'].forEach(id => {
     $(id).addEventListener('focusin', e => {
       const k = e.target.dataset.num;
       if (k) e.target.value = +val(k).toFixed(2);
@@ -321,10 +352,12 @@
     });
   });
   $('defChart').addEventListener('click', e => { const b = e.target.closest('[data-defyear]'); if (b) setValue('defYears', +b.dataset.defyear); });
+  $('maeReset').addEventListener('click', () => { MAE_KEYS.forEach(k => { state[k] = DEFAULTS[k]; }); syncSliders(); render(); });
   $('defReset').addEventListener('click', () => { state.defNB = DEFAULTS.defNB; state.defYears = DEFAULTS.defYears; syncSliders(); render(); });
   $('reset').addEventListener('click', () => { state = Object.assign({}, DEFAULTS); plan = null; mode = 'same'; syncSliders(); render(); });
 
   buildRates();
   $('defSliders').innerHTML = ['defNB', 'defYears'].map(controlHtml).join('');
+  $('maeSliders').innerHTML = MAE_KEYS.map(controlHtml).join('');
   setView('agent');
 })();
