@@ -99,6 +99,6 @@
     return rows;
   }
 
-  const api = {RATES, GM_BENEFITS, DEFERRED, YEARS, cohorts, sources, project, wgSteps, wholeGroup, deferred};
+  const api = {RATES, GM_BENEFITS, DEFERRED, YEARS, at, cohorts, sources, project, wgSteps, wholeGroup, deferred};
   if (typeof module !== 'undefined') module.exports = api; else root.Calc = api;
 })(this);

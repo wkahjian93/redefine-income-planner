@@ -45,6 +45,7 @@
   const inputs = () => Object.assign({}, state, mode === 'yearly' ? plan : {}, {renewal: state.renewalPct / 100});
   const val = k => mode === 'yearly' && !ONE_VALUE.includes(k) ? plan[k][year - 1] : state[k];
 
+  const at = Calc.at;
   const heroLabel = n => ({agent: `Agent, Year ${n} income`, um: `Unit Manager, Year ${n} overriding`, gm: `Group Manager, Year ${n} overriding + benefits`})[view];
 
   function controlHtml(key) {
@@ -157,8 +158,19 @@
         return `<div class="row"><i style="background:${COHORT[i]}"></i><div><b>Year ${i + 1} sales</b><small>${money(src.production[i])}, policy year ${age + 1} at <strong class="pct">${pct(src.rates[age])}</strong></small></div><span class="amt">${rm(v / 12)}</span></div>`;
       }).reverse().join('');
     } else {
-      rows = y.rows.filter(r => r.sold > 0 || r.total > 0).map(r =>
-        `<div class="row"><span></span><div><b>${r.label}</b><small>${r.note || money(r.sold) + ' sales this year'}</small></div><span class="amt">${rm(r.total / 12)}</span></div>`).join('');
+      // One row per sales year, with each override source and its rate, like the Agent tab
+      const short = {du: 'Direct unit', ride: view === 'um' ? 'UM you developed' : 'UM group', block: 'UM block', spo: 'Daughter GM group (SPO)'};
+      const earned = y.rows.filter(r => r.rates);
+      for (let i = year - 1; i >= 0; i--) {
+        const age = year - 1 - i;
+        const lines = earned.filter(r => at(r.production, i) > 0 && (r.rates[age] || 0) > 0);
+        if (!lines.length) continue;
+        const amount = lines.reduce((s, r) => s + r.parts[i], 0);
+        rows += `<div class="row"><i style="background:${COHORT[i]}"></i><div><b>Year ${i + 1} sales</b><small>Policy year ${age + 1}</small>${lines.map(r =>
+          `<small class="src">${short[r.key]} ${money(at(r.production, i))} at <strong class="pct">${pct(r.rates[age])}</strong></small>`).join('')}</div><span class="amt">${rm(amount / 12)}</span></div>`;
+      }
+      rows += y.rows.filter(r => !r.rates && r.total > 0).map(r =>
+        `<div class="row"><i style="background:var(--cream)"></i><div><b>${r.label}</b><small>${r.note}</small></div><span class="amt">${rm(r.total / 12)}</span></div>`).join('');
     }
     rows += `<div class="row total"><span></span><div><b>Total for Year ${year}</b><small>${rm(y.total)} a year</small></div><span class="amt">${rm(y.monthly)}</span></div>`;
     $('breakdown').innerHTML = rows;
