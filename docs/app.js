@@ -4,8 +4,8 @@
   const rm = n => 'RM' + Math.round(n).toLocaleString('en-MY');
   const pct = n => +(n * 100).toFixed(3) + '%';
 
-  const DEFAULTS = {cases: 6, size: 3000, renewalPct: 100, umDU: 600000, umBlock: 0, gmDU: 1000000, gmUM: 600000, gmBlock: 0, gmWG: 2000000, defNB: 1000000, defYears: 30, maeGoal: 36000, maeSize: 3000, maeClose: 20, maePresent: 70, maeProspect: 60};
-  const ONE_VALUE = ['renewalPct', 'defNB', 'defYears', 'maeGoal', 'maeSize', 'maeClose', 'maePresent', 'maeProspect'];   // never set year by year
+  const DEFAULTS = {cases: 6, size: 3000, renewalPct: 100, umDU: 600000, umBlock: 0, gmDU: 1000000, gmUM: 600000, gmBlock: 0, gmWG: 2000000, defNB: 1000000, defYears: 30, maeGoal: 120000, maePeriod: 12, maeSize: 3000, maeClose: 20, maePresent: 70, maeProspect: 60};
+  const ONE_VALUE = ['renewalPct', 'defNB', 'defYears', 'maeGoal', 'maePeriod', 'maeSize', 'maeClose', 'maePresent', 'maeProspect'];   // never set year by year
   const PER_YEAR = Object.keys(DEFAULTS).filter(k => !ONE_VALUE.includes(k));
   let state = Object.assign({}, DEFAULTS);
   let plan = null, mode = 'same';   // plan holds one value per year for each PER_YEAR key
@@ -25,7 +25,7 @@
     gmWG: {label: 'Daughter GM whole group sales a year', min: 0, max: 10000000, step: 100000, fmt: money},
     defNB: {label: 'New business a year (DU)', min: 0, max: 5000000, step: 50000, fmt: money},
     defYears: {label: 'After how many years', min: 1, max: 30, whole: true, step: 1, fmt: v => v + (v === 1 ? ' year' : ' years')},
-    maeGoal: {label: 'Commission goal a year', min: 0, max: 300000, step: 1000, fmt: rm},
+    maeGoal: {label: 'Total ANP goal', min: 0, max: 600000, step: 5000, fmt: rm},
     maeSize: {label: 'M: average case size (ANP)', min: 500, max: 15000, top: 1000000, step: 100, fmt: rm},
     maeClose: {label: 'E: closing ratio (C/P)', min: 5, max: 50, top: 100, step: 1, fmt: v => v + '%', hint: 'Usually 10% to 20%. Ideal 20%.'},
     maePresent: {label: 'Presentation ratio (P/O)', min: 30, max: 100, top: 100, step: 1, fmt: v => v + '%', hint: 'Aim for 70% or higher.'},
@@ -184,17 +184,40 @@
   const MAE_KEYS = ['maeGoal', 'maeSize', 'maeClose', 'maePresent', 'maeProspect'];
   const count = (n, d = 1) => (+n.toFixed(d)).toLocaleString('en-MY');
 
+  // Goal periods: months in each, its name, and the goal slider's range for it
+  const PERIODS = {1: ['month', 'a month', 50000, 500], 3: ['quarter', 'a quarter', 150000, 1000], 6: ['half year', 'a half year', 300000, 1000], 12: ['year', 'a year', 600000, 5000]};
+
+  function setPeriod(months) {
+    // keep the same pace: RM10,000 a month becomes RM30,000 a quarter
+    state.maeGoal = Math.round(state.maeGoal / state.maePeriod * months);
+    state.maePeriod = months;
+    buildMae();
+    render();
+  }
+
+  function buildMae() {
+    const [, , max, step] = PERIODS[state.maePeriod];
+    Object.assign(CONTROLS.maeGoal, {max, step});
+    $('maeSliders').innerHTML = MAE_KEYS.map(controlHtml).join('');
+    document.querySelectorAll('.period button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.period === state.maePeriod));
+    syncSliders();
+  }
+
   function renderMae() {
-    const r = Calc.mae({goal: state.maeGoal, size: state.maeSize, closing: state.maeClose / 100, presentRatio: state.maePresent / 100, prospectRatio: state.maeProspect / 100});
+    const months = state.maePeriod, [name, per] = PERIODS[months];
+    const r = Calc.mae({anp: state.maeGoal, months, size: state.maeSize, closing: state.maeClose / 100, presentRatio: state.maePresent / 100, prospectRatio: state.maeProspect / 100});
     $('maeNum').textContent = r.pWeek;
-    $('maeSub').textContent = `${r.pMonth} a month, ${count(r.pYear, 0)} a year, for ${rm(state.maeGoal)} commission a year (${rm(state.maeGoal / 12)} a month)`;
+    $('maeSub').textContent = months === 1
+      ? `${r.pMonth} a month, for ${rm(state.maeGoal)} ANP a month`
+      : `${r.pMonth} a month, ${count(r.pPeriod, 0)} a ${name}, for ${rm(state.maeGoal)} ANP ${per}`;
     $('maeSteps').innerHTML = [
-      ['Commission goal ÷ first-year rate', `${rm(state.maeGoal)} ÷ <strong class="pct">${pct(r.rate)}</strong>`, `${rm(r.anp)} ANP`],
-      ['ANP ÷ M (case size)', `${rm(r.anp)} ÷ ${rm(state.maeSize)}`, `${count(r.casesYear)} cases a year`],
-      ['Cases ÷ E (closing ratio)', `${count(r.casesYear)} ÷ <strong class="pct">${state.maeClose}%</strong>`, `${count(r.pYear, 0)} presentations a year`],
-      ['A month, then a week', `${count(r.pYear, 0)} ÷ 12, then ÷ 4 weeks, rounded up`, `${r.pMonth} a month, ${r.pWeek} a week`]
+      ['ANP goal ÷ M (case size)', `${rm(state.maeGoal)} ÷ ${rm(state.maeSize)}`, `${count(r.cases)} cases ${per}`],
+      ['Cases ÷ E (closing ratio)', `${count(r.cases)} ÷ <strong class="pct">${state.maeClose}%</strong>`, `${count(r.pPeriod, 0)} presentations ${per}`],
+      months === 1
+        ? ['A week', `${count(r.pPeriod, 0)} ÷ 4 weeks, rounded up`, `${r.pWeek} a week`]
+        : ['A month, then a week', `${count(r.pPeriod, 0)} ÷ ${months}, then ÷ 4 weeks, rounded up`, `${r.pMonth} a month, ${r.pWeek} a week`]
     ].map(([b, s, v], i) => `<div class="row"><span class="stepno">${i + 1}</span><div><b>${b}</b><small>${s}</small></div><span class="amt">${v}</span></div>`).join('');
-    $('maeEq').innerHTML = `M ${rm(state.maeSize)} &times; A ${count(r.pYear, 0)} presentations &times; E ${state.maeClose}% = <b>${rm(r.anp)} ANP</b>`;
+    $('maeEq').innerHTML = `M ${rm(state.maeSize)} &times; A ${count(r.pPeriod, 0)} presentations &times; E ${state.maeClose}% = <b>${rm(r.anp)} ANP</b> ${per}<br>About <b>${rm(r.commission)}</b> first-year commission at ${pct(r.rate)}`;
     const funnel = [
       ['A', 'approaches', r.aWeek, `O/A ${state.maeProspect}%`],
       ['O', 'appointments', r.oWeek, `P/O ${state.maePresent}%`],
@@ -352,12 +375,13 @@
     });
   });
   $('defChart').addEventListener('click', e => { const b = e.target.closest('[data-defyear]'); if (b) setValue('defYears', +b.dataset.defyear); });
-  $('maeReset').addEventListener('click', () => { MAE_KEYS.forEach(k => { state[k] = DEFAULTS[k]; }); syncSliders(); render(); });
+  $('maeReset').addEventListener('click', () => { MAE_KEYS.concat('maePeriod').forEach(k => { state[k] = DEFAULTS[k]; }); buildMae(); render(); });
   $('defReset').addEventListener('click', () => { state.defNB = DEFAULTS.defNB; state.defYears = DEFAULTS.defYears; syncSliders(); render(); });
   $('reset').addEventListener('click', () => { state = Object.assign({}, DEFAULTS); plan = null; mode = 'same'; syncSliders(); render(); });
 
   buildRates();
   $('defSliders').innerHTML = ['defNB', 'defYears'].map(controlHtml).join('');
-  $('maeSliders').innerHTML = MAE_KEYS.map(controlHtml).join('');
+  buildMae();
+  document.querySelector('.period').addEventListener('click', e => { const b = e.target.closest('[data-period]'); if (b) setPeriod(+b.dataset.period); });
   setView('agent');
 })();

@@ -83,19 +83,18 @@
   }
 
   // MAE: Market (average case size) x Activity (presentations) x Efficiency (closing ratio) = ANP.
-  // Works back from a commission goal, as in the REDEFINE MAE video:
-  // commission / 28% = ANP, / case size = cases, / closing ratio = presentations a year,
-  // then a month (/12, rounded up) and a week (/4, rounded up); appointments = presentations / P:O, approaches = appointments / O:A.
-  function mae({goal, size, closing, presentRatio, prospectRatio}) {
+  // Works back from an ANP goal over `months` (1, 3, 6 or 12), as in the REDEFINE MAE video:
+  // ANP / case size = cases, / closing ratio = presentations in the period,
+  // then a month (/months, rounded up) and a week (/4, rounded up); appointments = presentations / P:O, approaches = appointments / O:A.
+  function mae({anp, months, size, closing, presentRatio, prospectRatio}) {
     const rate = RATES.personal[0];
-    const anp = goal / rate;
-    const casesYear = size > 0 ? anp / size : 0;
-    const pYear = closing > 0 ? casesYear / closing : 0;
-    const pMonth = Math.max(0, Math.ceil(pYear / 12 - 1e-9));
+    const cases = size > 0 ? anp / size : 0;
+    const pPeriod = closing > 0 ? cases / closing : 0;
+    const pMonth = Math.max(0, Math.ceil(pPeriod / months - 1e-9));
     const pWeek = Math.max(0, Math.ceil(pMonth / 4 - 1e-9));
     const oWeek = presentRatio > 0 ? Math.round(pWeek / presentRatio) : 0;
     const aWeek = prospectRatio > 0 ? Math.round(oWeek / prospectRatio) : 0;
-    return {rate, anp, casesYear, casesMonth: casesYear / 12, pYear, pMonth, pWeek, oWeek, aWeek, cWeek: pWeek * closing};
+    return {rate, anp, commission: anp * rate, cases, pPeriod, pMonth, pWeek, oWeek, aWeek, cWeek: pWeek * closing};
   }
 
   // Deferred Benefits table in the commission sheet: 90% of new business builds accumulated renewal each year.

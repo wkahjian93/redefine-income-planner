@@ -83,13 +83,18 @@ near(def[29].accumulated, 27000000, 'accumulated year 30');
 near(deferred(500000)[29].fund, SHEET_DEFERRED[29] / 2, 'deferred scales with new business');
 near(deferred(0)[29].fund, 0, 'deferred at zero');
 
-// MAE video worked example: RM36,000 commission, RM3,000 case size, 20% closing, 70% P/O, 60% O/A
-const m = mae({goal: 36000, size: 3000, closing: 0.2, presentRatio: 0.7, prospectRatio: 0.6});
-near(m.anp, 128571.43, 'mae anp');
-near(m.casesYear, 42.857, 'mae cases');
-near(m.pYear, 214.286, 'mae presentations a year');
+// MAE video worked example: RM36,000 commission / 28% = RM128,571 ANP a year, RM3,000 case size, 20% closing, 70% P/O, 60% O/A
+const m = mae({anp: 36000 / 0.28, months: 12, size: 3000, closing: 0.2, presentRatio: 0.7, prospectRatio: 0.6});
+near(m.commission, 36000, 'mae commission');
+near(m.cases, 42.857, 'mae cases');
+near(m.pPeriod, 214.286, 'mae presentations a year');
 assert.deepStrictEqual([m.pMonth, m.pWeek, m.oWeek, m.aWeek], [18, 5, 7, 12], 'mae month and week');
-const m0 = mae({goal: 0, size: 3000, closing: 0.2, presentRatio: 0.7, prospectRatio: 0.6});
+const m0 = mae({anp: 0, months: 12, size: 3000, closing: 0.2, presentRatio: 0.7, prospectRatio: 0.6});
 assert.deepStrictEqual([m0.pMonth, m0.pWeek, m0.oWeek, m0.aWeek], [0, 0, 0, 0], 'mae zero goal');
+// Same pace in every period: RM10,000 a month = RM30,000 a quarter = RM60,000 a half year = RM120,000 a year
+for (const [months, anp] of [[1, 10000], [3, 30000], [6, 60000], [12, 120000]]) {
+  const p = mae({anp, months, size: 3000, closing: 0.2, presentRatio: 0.7, prospectRatio: 0.6});
+  assert.deepStrictEqual([p.pMonth, p.pWeek, p.oWeek, p.aWeek], [17, 5, 7, 12], 'mae period ' + months);
+}
 
 console.log('All checks passed');

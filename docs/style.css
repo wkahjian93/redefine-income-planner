@@ -40,9 +40,11 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid
 .card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
 .link{font-size:13px;color:var(--gold);min-height:32px;padding:0 0 0 12px}
 
-.mode{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:3px;margin-bottom:10px;background:var(--raise);border-radius:10px}
-.mode button{min-height:38px;border-radius:8px;font-size:13px;font-weight:500;color:var(--muted)}
-.mode button[aria-pressed=true]{background:var(--cream);color:var(--ink);font-weight:600}
+.mode,.period{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:3px;margin-bottom:10px;background:var(--raise);border-radius:10px}
+.mode button,.period button{min-height:38px;border-radius:8px;font-size:13px;font-weight:500;color:var(--muted)}
+.mode button[aria-pressed=true],.period button[aria-pressed=true]{background:var(--cream);color:var(--ink);font-weight:600}
+.period{grid-template-columns:repeat(4,1fr)}
+.period button{font-size:12px;padding:0 2px}
 .edit-note{font-size:13px;color:var(--muted);margin-bottom:6px}
 .edit-note b{color:var(--gold);font-weight:600}
 .plan{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
