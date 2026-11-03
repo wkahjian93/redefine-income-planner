@@ -4,8 +4,8 @@
   const rm = n => 'RM' + Math.round(n).toLocaleString('en-MY');
   const pct = n => +(n * 100).toFixed(3) + '%';
 
-  const DEFAULTS = {cases: 6, size: 3000, renewalPct: 100, umDU: 600000, umBlock: 0, gmDU: 1000000, gmUM: 600000, gmBlock: 0, gmWG: 2000000, defNB: 1000000, defYears: 30, maeGoal: 120000, maePeriod: 12, maeSize: 3000, maeClose: 20, maePresent: 70, maeProspect: 60};
-  const ONE_VALUE = ['renewalPct', 'defNB', 'defYears', 'maeGoal', 'maePeriod', 'maeSize', 'maeClose', 'maePresent', 'maeProspect'];   // never set year by year
+  const DEFAULTS = {cases: 6, size: 3000, renewalPct: 100, umDU: 600000, umBlock: 0, gmDU: 1000000, gmUM: 600000, gmBlock: 0, gmWG: 2000000, gmPR: 95, gmBook: 4000000, defNB: 1000000, defYears: 30, maeGoal: 120000, maePeriod: 12, maeSize: 3000, maeClose: 20, maePresent: 70, maeProspect: 60};
+  const ONE_VALUE = ['renewalPct', 'gmPR', 'gmBook', 'defNB', 'defYears', 'maeGoal', 'maePeriod', 'maeSize', 'maeClose', 'maePresent', 'maeProspect'];   // never set year by year
   const PER_YEAR = Object.keys(DEFAULTS).filter(k => !ONE_VALUE.includes(k));
   let state = Object.assign({}, DEFAULTS);
   let plan = null, mode = 'same';   // plan holds one value per year for each PER_YEAR key
@@ -23,6 +23,8 @@
     gmUM: {label: 'Your UM group sales a year', min: 0, max: 5000000, step: 50000, fmt: money},
     gmBlock: {label: 'Group sales of a UM developed by your UM', min: 0, max: 3000000, step: 10000, fmt: money},
     gmWG: {label: 'Daughter GM whole group sales a year', min: 0, max: 10000000, step: 100000, fmt: money},
+    gmPR: {label: 'Whole group persistency ratio (PR), for AOM', min: 70, max: 100, top: 100, step: 1, fmt: v => v + '%', hint: 'PR 88% gives factor 1. PR 100% gives factor 2.'},
+    gmBook: {label: 'Renewal premium you already have in Year 1', min: 0, max: 20000000, step: 100000, fmt: money},
     defNB: {label: 'New business a year (DU)', min: 0, max: 5000000, step: 50000, fmt: money},
     defYears: {label: 'After how many years', min: 1, max: 30, whole: true, step: 1, fmt: v => v + (v === 1 ? ' year' : ' years')},
     maeGoal: {label: 'Total ANP goal', min: 0, max: 600000, step: 5000, fmt: rm},
@@ -44,7 +46,7 @@
   const LAYOUT = {
     agent: {main: ['cases', 'size', 'renewalPct']},
     um: {main: ['umDU', 'renewalPct'], more: ['umBlock'], moreLabel: 'Developed another UM?'},
-    gm: {main: ['gmDU', 'gmUM', 'gmWG', 'renewalPct'], more: ['gmBlock'], moreLabel: 'UM block under your UM?'}
+    gm: {main: ['gmDU', 'gmUM', 'gmWG', 'renewalPct', 'gmPR', 'gmBook'], more: ['gmBlock'], moreLabel: 'UM block under your UM?'}
   };
   const COHORT = ['#BE8A2A', '#5B7FE6', '#7E9A2E', '#B867C4', '#22A08F', '#D0655A'];   // one colour per sales year
   const inputs = () => Object.assign({}, state, mode === 'yearly' ? plan : {}, {renewal: state.renewalPct / 100});
@@ -98,8 +100,8 @@
     }
     const wgLine = $('wgLine');
     if (wgLine) {
-      const wg = val('gmDU') + val('gmUM') + val('gmBlock'), bonus = Calc.wgSteps(wg) * Calc.GM_BENEFITS.wgBonus;
-      wgLine.innerHTML = `Whole group <b>${money(wg)}</b> earns <b>${rm(bonus)}</b> bonus ${mode === 'yearly' ? 'in Year ' + year : 'a year'}`;
+      const a = Calc.aom(inputs(), year - 1);
+      wgLine.innerHTML = `Year ${year}: whole group <b>${money(a.wg)}</b>, entitlement <b>${rm(a.entitlement)}</b>. Basic AOM ${rm(a.basic)}${a.qualifies ? '' : ', under RM60,000 so no Extra AOM'}`;
     }
     document.querySelectorAll('.mode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === mode));
     $('planBox').hidden = mode !== 'yearly';
@@ -174,7 +176,7 @@
         rows += `<div class="row"><i style="background:${COHORT[i]}"></i><div><b>Year ${i + 1} sales</b><small>Policy year ${age + 1}</small>${lines.map(r =>
           `<small class="src">${short[r.key]} ${money(at(r.production, i))} at <strong class="pct">${pct(r.rates[age])}</strong></small>`).join('')}</div><span class="amt">${rm(amount / 12)}</span></div>`;
       }
-      rows += y.rows.filter(r => !r.rates && r.total > 0).map(r =>
+      rows += y.rows.filter(r => !r.rates && (r.total > 0 || r.key === 'xaom')).map(r =>
         `<div class="row"><i style="background:var(--cream)"></i><div><b>${r.label}</b><small>${r.note}</small></div><span class="amt">${rm(r.total / 12)}</span></div>`).join('');
     }
     rows += `<div class="row total"><span></span><div><b>Total for Year ${year}</b><small>${rm(y.total)} a year</small></div><span class="amt">${rm(y.monthly)}</span></div>`;
@@ -314,8 +316,9 @@
       {h: 'UM on a UM they developed', sub: '3-years block, paid to the developing UM.', years: 3, rows: [['OR', [0, 40, 36.6]], ['AAC', [0, 5.6, 1.647], true]]}
     ]},
     {title: 'GM benefits', cards: [
-      {h: 'AOM', lines: ['RM5,000 a month.']},
-      {h: 'Whole group bonus', lines: ['RM40,000 a year for every RM750,000 of whole group sales.']}
+      {h: 'Basic AOM', lines: ['New business premium × 0.75% + total renewal premium × 1.75%.', 'Paid up to RM60,000 a year (RM5,000 a month).']},
+      {h: 'Extra AOM', lines: ['Needs Basic AOM of at least RM60,000.', 'Factor × the lower of the entitlement and Basic AOM above RM60,000.', 'Factor = [(PR − 88) ÷ 12] + 1. PR is the whole group persistency ratio.']},
+      {h: 'Entitlement (whole group MFYLP)', lines: ['RM750k to RM1.5m: RM20,000', 'RM1.5m to RM3m: RM40,000', 'RM3m to RM5m: RM60,000', 'Over RM5m: RM80,000']}
     ]},
     {title: 'Deferred benefits', cards: [
       {h: 'How it builds', lines: ['Accumulated renewal: 90% of new business, added each year.', '1.25% of accumulated renewal is added to the fund each year.', 'The fund grows 5% a year from Year 2.']}

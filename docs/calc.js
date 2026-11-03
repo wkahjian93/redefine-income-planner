@@ -15,8 +15,11 @@
     spo: [0.03, 0.03]                   // FY 3 + SY 3, received by the Mother GM
   };
 
-  // GM benefits as given by the agency leader
-  const GM_BENEFITS = {aomMonthly: 5000, wgStep: 750000, wgBonus: 40000};
+  // GM AOM, from the "Group Manager (GM)'s Extra AOM Calculation" sheet:
+  // Basic AOM = new business premium x 0.75% + total renewal premium x 1.75%. The GM is paid up to RM60,000 of it;
+  // only the part above RM60,000 can be claimed as Extra AOM, up to the entitlement for whole group sales, times the PR factor.
+  const AOM = {nbRate: 0.0075, renewalRate: 0.0175, basicPaid: 60000,
+    tiers: [[5000000, 80000], [3000000, 60000], [1500000, 40000]]};
 
   // An input is one number (same every year) or an array with one value per year.
   const at = (v, i) => Array.isArray(v) ? v[i] : v;
@@ -50,17 +53,37 @@
     ];
   }
 
-  // Whole group bonus: every full step of whole group sales in a year earns one bonus.
-  const wgSteps = wg => Math.floor(wg / GM_BENEFITS.wgStep);
+  // Whole group = direct unit + UM group + UM block (the daughter GM group is not counted)
   const wholeGroup = (s, i) => at(s.gmDU, i) + at(s.gmUM, i) + at(s.gmBlock, i);
+  // A band's top amount belongs to it (RM1.5m is RM20,000, RM5m is RM60,000); RM750k starts the first band
+  const entitlement = wg => wg < 750000 ? 0 : (AOM.tiers.find(([from]) => wg > from) || [0, 20000])[1];
+  const prFactor = pr => Math.max(0, (pr - 88) / 12 + 1);
+
+  // AOM for year i+1. Renewal premium starts at the GM's existing book and each year adds the
+  // previous years' whole group sales that stay in force at the PR.
+  function aom(s, i) {
+    const pr = s.gmPR == null ? 100 : s.gmPR, book = s.gmBook || 0;
+    let renewal = book;
+    for (let c = 0; c < i; c++) renewal += wholeGroup(s, c) * pr / 100;
+    const wg = wholeGroup(s, i);
+    const basic = wg * AOM.nbRate + renewal * AOM.renewalRate;
+    const surplus = Math.max(0, basic - AOM.basicPaid);
+    const factor = prFactor(pr), ent = entitlement(wg);
+    const qualifies = basic >= AOM.basicPaid;
+    return {wg, renewal, basic, basicPaid: Math.min(basic, AOM.basicPaid), surplus, factor, entitlement: ent, qualifies,
+      extra: qualifies ? factor * Math.min(ent, surplus) : 0};
+  }
 
   // GM benefits are paid on top of overriding and are not tied to any sales year.
   function benefits(level, s, i) {
     if (level !== 'gm') return [];
-    const wg = wholeGroup(s, i), steps = wgSteps(wg);
+    const a = aom(s, i), money = n => 'RM' + Math.round(n).toLocaleString('en-MY');
+    const extraNote = !a.qualifies ? `Needs Basic AOM of RM60,000 first (now ${money(a.basic)})`
+      : !a.entitlement ? 'Whole group sales under RM750,000: no entitlement'
+      : `Factor ${+a.factor.toFixed(3)} × lower of ${money(a.entitlement)} entitlement and ${money(a.surplus)} above RM60,000`;
     return [
-      {key: 'aom', label: 'AOM', note: 'RM5,000 a month', parts: [], sold: 0, total: GM_BENEFITS.aomMonthly * 12},
-      {key: 'wg', label: 'Whole group bonus', note: `${steps} × RM${GM_BENEFITS.wgBonus.toLocaleString('en-MY')} on RM${wg.toLocaleString('en-MY')} whole group sales`, parts: [], sold: 0, total: steps * GM_BENEFITS.wgBonus}
+      {key: 'aom', label: 'Basic AOM', note: `${money(a.wg)} × 0.75% + ${money(a.renewal)} renewal × 1.75% = ${money(a.basic)}, paid up to RM60,000`, parts: [], sold: 0, total: a.basicPaid},
+      {key: 'xaom', label: 'Extra AOM', note: extraNote, parts: [], sold: 0, total: a.extra}
     ];
   }
 
@@ -114,6 +137,6 @@
     return rows;
   }
 
-  const api = {RATES, GM_BENEFITS, DEFERRED, YEARS, at, cohorts, sources, project, wgSteps, wholeGroup, deferred, mae};
+  const api = {RATES, AOM, DEFERRED, YEARS, at, cohorts, sources, project, wholeGroup, entitlement, prFactor, aom, deferred, mae};
   if (typeof module !== 'undefined') module.exports = api; else root.Calc = api;
 })(this);
