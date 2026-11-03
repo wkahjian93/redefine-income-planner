@@ -23,7 +23,7 @@
     gmUM: {label: 'Your UM group sales a year', min: 0, max: 5000000, step: 50000, fmt: money},
     gmBlock: {label: 'Group sales of a UM developed by your UM', min: 0, max: 3000000, step: 10000, fmt: money},
     gmWG: {label: 'Daughter GM whole group sales a year', min: 0, max: 10000000, step: 100000, fmt: money},
-    defNB: {label: 'New business a year', min: 0, max: 5000000, step: 50000, fmt: money},
+    defNB: {label: 'New business a year (DU)', min: 0, max: 5000000, step: 50000, fmt: money},
     defYears: {label: 'After how many years', min: 1, max: 30, whole: true, step: 1, fmt: v => v + (v === 1 ? ' year' : ' years')}
   };
   const topOf = c => c.top || (c.fmt === money ? 1e9 : c.max);
