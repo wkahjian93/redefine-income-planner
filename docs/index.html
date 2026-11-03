@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>REDEFINE Income Planner</title>
+<meta name="description" content="See how sales activity builds into income, from agent to GM.">
+<meta name="theme-color" content="#0B0C10">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="REDEFINE Income">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="icons/icon-192.png" alt=""><span>REDEFINE</span><em>Income Planner</em></div>
+  <nav class="tabs" role="tablist" aria-label="Career level">
+    <button role="tab" data-view="agent">Agent</button>
+    <button role="tab" data-view="um">UM</button>
+    <button role="tab" data-view="gm">GM</button>
+    <button role="tab" data-view="deferred">Deferred</button>
+    <button role="tab" data-view="rates">Rates</button>
+  </nav>
+</header>
+
+<main id="planner">
+  <section class="hero" aria-live="polite">
+    <p class="hero-label" id="heroLabel"></p>
+    <p class="hero-num"><small>RM</small><span id="heroNum">0</span><small class="per">/month</small></p>
+    <p class="hero-sub" id="heroSub"></p>
+    <div class="years" id="years" role="group" aria-label="Choose year"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Your assumptions</h2><button class="link" id="reset">Reset</button></div>
+    <div class="mode" role="group" aria-label="How to set sales">
+      <button data-mode="same">Same every year</button>
+      <button data-mode="yearly">Year by year</button>
+    </div>
+    <div id="planBox" hidden>
+      <p class="edit-note" id="editNote"></p>
+      <div class="plan" id="plan"></div>
+      <button class="link" id="copy"></button>
+    </div>
+    <div id="sliders"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>How income stacks up</h2><span class="muted">monthly, tap a year</span></div>
+    <div class="chart" id="chart"></div>
+    <div class="legend" id="legend"></div>
+    <p class="note" id="chartNote"></p>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2 id="breakTitle"></h2><span class="muted">a month</span></div>
+    <div id="breakdown"></div>
+    <div class="six"><span>6-year total</span><strong id="six"></strong></div>
+  </section>
+</main>
+
+<main id="deferred" hidden>
+  <section class="hero" aria-live="polite">
+    <p class="hero-label" id="defLabel"></p>
+    <p class="hero-num"><small>RM</small><span id="defNum">0</span></p>
+    <p class="hero-sub">Accumulated total, illustrative</p>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Your assumptions</h2><button class="link" id="defReset">Reset</button></div>
+    <div id="defSliders"></div>
+    <p class="summary-line">Fixed: <b>90%</b> accumulated renewal, <b>1.25%</b> added each year, <b>5%</b> growth a year</p>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>How it builds</h2><span class="muted">over 30 years, tap a year</span></div>
+    <div class="dchart" id="defChart"></div>
+    <div class="dchart-x"><span>Y1</span><span>Y10</span><span>Y20</span><span>Y30</span></div>
+    <p class="note">Sales are the same every year. The 90% is taken as staying in force for the full period.</p>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Selected year</h2></div>
+    <div id="defBreak"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Milestones</h2></div>
+    <div id="defMiles"></div>
+  </section>
+</main>
+
+<main id="rates" hidden></main>
+
+<footer>
+  <p><strong>Illustration only, not an income promise.</strong> Figures are gross commission before tax and expenses, based only on the sales and renewal assumptions above. Personal commission uses planning rates and actual rates may vary by product. Override rates apply to standard investment-link plans, new business. Your results depend on your own sales and on policies staying in force. Deferred benefits are an illustration; eligibility and payment follow company rules. The agency contract, agency rules and regulations and e-circulars prevail.</p>
+</footer>
+
+<script src="calc.js"></script>
+<script src="app.js"></script>
+<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));</script>
+</body>
+</html>
