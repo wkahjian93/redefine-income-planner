@@ -86,7 +86,9 @@ details .ctl:first-of-type{border-top:0}
 .bar[aria-pressed=true] .val{visibility:visible}
 .stack{display:flex;flex-direction:column-reverse;gap:2px;transition:height .18s ease-out;border-radius:4px 4px 0 0;overflow:hidden;opacity:.8}
 .bar[aria-pressed=true] .stack{opacity:1}
-.seg{display:block;flex:none;min-height:1px}
+.seg{display:flex;align-items:center;justify-content:center;flex:none;min-height:1px;overflow:hidden;
+  font-size:9px;font-weight:700;line-height:1;color:#fff;white-space:nowrap;letter-spacing:-.02em;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px rgba(0,0,0,.55)}
+.seg.light{color:var(--ink);text-shadow:none}
 .xaxis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:0}
 .chart-x{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding-top:5px;font-size:11px;color:var(--muted);text-align:center}
 .dchart{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;height:176px;align-items:end;border-bottom:1px solid var(--line)}

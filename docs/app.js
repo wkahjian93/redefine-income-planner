@@ -129,14 +129,18 @@
     settle = setTimeout(() => { cancelAnimationFrame(tween); shown = to; $('heroNum').textContent = Math.round(to).toLocaleString('en-MY'); }, ms + 40);
   }
 
+  const segLabel = m => m >= 10000 ? 'RM' + +(m / 1000).toFixed(1) + 'k' : rm(m);
   const segments = y => y.bySalesYear.map((v, i) => ({v, color: COHORT[i]})).concat({v: y.benefits, color: 'var(--cream)'});
 
   function renderChart(p) {
     const max = Math.max(1, ...p.years.map(y => y.monthly));
     $('chart').innerHTML = p.years.map(y => {
       const h = y.monthly / max * 168;
-      const segs = segments(y).filter(s => s.v > 0)
-        .map(s => `<span class="seg" style="height:${Math.max(1, s.v / y.total * h - 2)}px;background:${s.color}"></span>`).join('');
+      // Each box shows its monthly amount when there is room for the text
+      const segs = segments(y).filter(s => s.v > 0).map(s => {
+        const px = Math.max(1, s.v / y.total * h - 2);
+        return `<span class="seg${s.color === 'var(--cream)' ? ' light' : ''}" style="height:${px}px;background:${s.color}">${px >= 11 ? segLabel(s.v / 12) : ''}</span>`;
+      }).join('');
       return `<button class="bar" data-year="${y.year}" aria-pressed="${y.year === year}" aria-label="Year ${y.year}: ${rm(y.monthly)} a month">
         <span class="val">${y.monthly >= 10000 ? 'RM' + +(y.monthly / 1000).toFixed(1) + 'k' : rm(y.monthly)}</span>
         <span class="stack" style="height:${h}px">${segs}</span></button>`;
