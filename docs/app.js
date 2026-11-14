@@ -205,6 +205,99 @@
     syncSliders();
   }
 
+  // 2026 Elevation, Redesignation and Maintenance Guidelines ("D" Contract), circular AD/5024/APR2026, 29 April 2026.
+  // Plain-language version; the live checks only test the production and policy numbers this app knows.
+  const PROMO_SOURCE = 'Source: Great Eastern circular AD/5024/APR2026, 2026 Elevation, Redesignation and Maintenance Guidelines ("D" Contract), 29 April 2026. The full guideline and checklist in ePartner prevail.';
+  const PROMO_WORDS = [
+    ['FYLPI', 'First-year premium. This app uses ANP as a close estimate.'],
+    ['PS', 'Your personal sales.'],
+    ['DIA', 'Agents you introduced yourself.'],
+    ['QA', 'Qualifying agent: holds an agent contract on 31 Dec and sold at least RM18,000 FYLPI that year.'],
+    ['DG', 'Direct group: you plus your direct agents and CA/LIA.'],
+    ['WG', 'Whole group: everyone under you, except GMs your group has developed.'],
+    ['PR', 'First-year persistency: share of new policies still in force after a year.']
+  ];
+
+  function promoContent(y) {
+    const tick = (ok, text) => `<span class="pill ${ok ? 'ok' : 'no'}">${ok ? 'Met' : 'Not yet'}</span> ${text}`;
+    if (view === 'agent') {
+      const sales = y.rows[0].sold, policies = val('cases') * 12;
+      return {
+        title: 'Sales Manager title', sub: 'A yearly title. You must qualify again every year.',
+        live: [tick(sales >= 75000, `Year ${year} personal sales ${rm(sales)}, needs RM75,000`), tick(policies >= 24, `Year ${year} policies ${policies}, needs 24`)],
+        get: [
+          ['Sales', 'RM75,000 FYLPI a year: all personal, or at least RM50,000 personal plus the rest from agents you introduced.'],
+          ['Policies', 'At least 24 a year. Smart Invest Premier counts for at most 6.'],
+          ['Persistency', 'First-year PR of 85%.'],
+          ['Training', 'Complete UM Venture Level 1 (UV L1).']
+        ],
+        keep: [
+          ['Stay an agent', 'At least RM18,000 FYLPI personal sales a year, PR 85%, and CPD from your 2nd year (30 hours in 2026).'],
+          ['New agents', 'Joined in 2026: RM13,500 (Jan–Mar), RM9,000 (Apr–Jun), RM4,500 (Jul–Sep), none after October.']
+        ]
+      };
+    }
+    if (view === 'um') {
+      const dg = y.rows.find(r => r.key === 'du').sold;
+      return {
+        title: 'Promotion to Unit Manager', sub: 'From agent to UM. Takes effect on 1 January.',
+        live: [tick(dg >= 100000, `Year ${year} direct group ${rm(dg)}, needs RM100,000 to stay UM`)],
+        get: [
+          ['Time', 'At least 2 calendar years as an agent, working full time.'],
+          ['Sales, year 1', 'RM75,000 FYLPI: all personal, or at least RM50,000 personal plus the rest from agents you introduced.'],
+          ['Sales, year 2', 'RM150,000 FYLPI, with at least RM75,000 personal and the rest from agents you introduced.'],
+          ['Team', 'At least 4 qualified agents you introduced (each RM18,000+). 2 of them must sell RM30,000+ each.'],
+          ['Policies', 'At least 24 a year, 2 years in a row. Smart Invest Premier counts for at most 6 a year.'],
+          ['Persistency', 'Personal first-year PR of 85%, 2 years in a row.'],
+          ['Training', 'UM Venture Level 2 (30 hours, done 2024–2026), and pass BAMC and CEILLI.']
+        ],
+        keep: [
+          ['Sales', 'RM100,000 FYLPI a year from your direct group.'],
+          ['Team', 'At least 4 qualifying agents in your direct group.'],
+          ['Persistency', 'Direct group first-year PR of 85%.'],
+          ['Training', 'Finish PLS1 (GM Venture Level 1) in your first year as UM, and CPD every year.'],
+          ['If you miss', 'Missing the requirements 2 years in a row returns you to agent.'],
+          ['Bonus credit', 'When your agent becomes a UM, you get 50% of their direct group sales in their 1st year and 25% in their 2nd, towards your own target.']
+        ]
+      };
+    }
+    const dg = y.rows.find(r => r.key === 'du').sold, wg = Calc.wholeGroup(inputs(), year - 1);
+    const meets = dg >= 300000 || (dg >= 100000 && wg >= 400000);
+    return {
+      title: 'Promotion to Group Manager', sub: 'From UM to GM. Takes effect on 1 January.',
+      live: [tick(meets, `Year ${year} direct group ${rm(dg)}, whole group ${rm(wg)}. To stay GM: RM300,000 direct group, or RM100,000 direct + RM400,000 whole group`)],
+      get: [
+        ['Time', 'At least 3 years as UM, working full time.'],
+        ['Path 1, 3 years', 'Direct group sales of RM300,000, then RM400,000, then RM450,000, in 3 years in a row. Team: 4 qualifying agents plus 2 qualified direct UMs in the final year.'],
+        ['Path 2, fast track', 'RM1.2m direct group sales within 2 years in a row. Team: 10 qualifying agents (at least 6 direct), at least 1 qualified direct UM, and 2 of the agents selling RM30,000+ personal each.'],
+        ['Help from your UMs', 'You may count 100% of a junior UM\'s sales for 3 years after they become UM.'],
+        ['Persistency', 'Direct group first-year PR of 85%, 2 years in a row.'],
+        ['Training', 'Pacesetter Program (GM Venture Level 3, 30 hours, done 2024–2026), and pass CEILLI.']
+      ],
+      keep: [
+        ['Sales, one of', 'RM300,000 direct group; or RM100,000 direct group + RM400,000 whole group; or RM100,000 direct group + RM300,000 whole group + RM100,000 GI/PA/HL.'],
+        ['Team', 'At least 8 qualifying agents in your whole group.'],
+        ['Persistency', 'Whole group first-year PR of 80%.'],
+        ['Training', 'Finish AMTC (GM Venture Level 4) in your first year as GM, and CPD every year.'],
+        ['If you miss', 'Missing the requirements 2 years in a row returns you to UM.'],
+        ['Bonus credit', 'When your UM becomes a GM, you get 50% of their whole group sales in their 1st year and 25% in their 2nd, towards your own target.'],
+        ['Senior GM title', '10 years in a row as GM and 3 GMs broken away from your direct group. A title only, with no extra pay.']
+      ]
+    };
+  }
+
+  function renderPromo(y) {
+    const c = promoContent(y);
+    const list = items => `<ul class="steps">${items.map(([k, v]) => `<li><b>${k}</b><span>${v}</span></li>`).join('')}</ul>`;
+    $('promoCard').innerHTML = `<div class="card-head"><h2>${c.title}</h2><span class="muted">2026 guideline</span></div>
+      <p class="promo-sub">${c.sub}</p>
+      <div class="promo-live">${c.live.map(l => `<p>${l}</p>`).join('')}<p class="muted">Persistency, team and training can't be checked here.</p></div>
+      <h3 class="promo-h">To get it</h3>${list(c.get)}
+      <details><summary>To keep it</summary>${list(c.keep)}</details>
+      <details><summary>Words used</summary>${list(PROMO_WORDS)}</details>
+      <p class="note">${PROMO_SOURCE}</p>`;
+  }
+
   function renderMae() {
     const months = state.maePeriod, [name, per] = PERIODS[months];
     const r = Calc.mae({anp: state.maeGoal, months, size: state.maeSize, closing: state.maeClose / 100, presentRatio: state.maePresent / 100, prospectRatio: state.maeProspect / 100});
@@ -257,6 +350,7 @@
     renderPlan(p);
     renderChart(p);
     renderBreakdown(y);
+    renderPromo(y);
     $('six').textContent = rm(p.sixYearTotal);
   }
 
